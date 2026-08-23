@@ -1,0 +1,40 @@
+---
+deployment:
+  tasks:
+    - >-
+      /usr/bin/rsync -a --safe-links --itemize-changes
+      --exclude='.git/'
+      --exclude='.github/'
+      --exclude='.gitignore'
+      --exclude='.cpanel.yml'
+      --exclude='.env'
+      --exclude='.env.*'
+      --exclude='config/'
+      --exclude='*.local.php'
+      --exclude='*.sql'
+      --exclude='*.sql.gz'
+      --exclude='*.dump'
+      --exclude='*.bak'
+      --exclude='*.backup'
+      --exclude='db-backups/'
+      --exclude='backups/'
+      --exclude='change-backups/'
+      --exclude='logs/'
+      --exclude='log/'
+      --exclude='cache/'
+      --exclude='.cache/'
+      --exclude='tmp/'
+      --exclude='temp/'
+      --exclude='.codex-spreadsheet-work/'
+      --exclude='storage/uploads/'
+      --exclude='uploads/'
+      --exclude='upload/'
+      --exclude='outputs/'
+      --exclude='exports/'
+      --exclude='*.pem'
+      --exclude='*.key'
+      --exclude='*.pfx'
+      --exclude='*.p12'
+      --exclude='*.crt'
+      /home/yerelsof/repositories/zirve/
+      /home/yerelsof/public_html/zirve/
