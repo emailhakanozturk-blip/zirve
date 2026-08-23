@@ -1,0 +1,64 @@
+# Dependencies
+/vendor/
+
+# Environment and local configuration (may contain credentials)
+.env
+.env.*
+!.env.example
+/.env
+/config/
+*.local.php
+
+# Database dumps and backups (keep versioned migrations)
+*.sql
+*.sql.gz
+*.dump
+*.bak
+*.backup
+!/migrations/
+!/migrations/**/*.sql
+/db-backups/
+/backups/
+/change-backups/
+*.before-*
+*.codex-tmp
+
+# Logs, caches and runtime data
+*.log
+/logs/
+/log/
+/cache/
+/tmp/
+/temp/
+/.cache/
+/.codex-spreadsheet-work/
+
+# User uploads and generated exports
+/storage/*
+!/storage/.gitkeep
+!/storage/uploads/
+/storage/uploads/*
+!/storage/uploads/.gitkeep
+/uploads/
+/upload/
+/outputs/
+/exports/
+
+# Local databases and private keys/certificates
+*.sqlite
+*.sqlite3
+*.db
+*.pem
+*.key
+*.pfx
+*.p12
+*.crt
+
+# OS and editor metadata
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*~
