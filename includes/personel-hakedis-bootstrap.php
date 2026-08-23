@@ -9,6 +9,14 @@ $config = require $moduleRoot . '/config/personel-hakedis.php';
 date_default_timezone_set($config['timezone']);
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
+    session_name('zirve_session');
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => '/',
+        'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
     session_start();
 }
 
@@ -35,10 +43,12 @@ if (!isset($pdo) || !$pdo instanceof PDO) {
     ]);
 }
 
+require_once $moduleRoot . '/includes/personel-hakedis-auth.php';
+
 $currentUserId = isset($_SESSION['user_id']) ? (int) $_SESSION['user_id'] : null;
-$moduleCanWrite = !isset($_SESSION['permissions'])
-    || in_array('personel_hakedis.yaz', (array) $_SESSION['permissions'], true)
-    || !empty($_SESSION['is_admin']);
+$sessionPermissions = (array)($_SESSION['permissions'] ?? []);
+$moduleCanWrite = !empty($_SESSION['is_admin'])
+    || count(array_filter($sessionPermissions, static fn($permission) => str_ends_with((string)$permission, '.manage'))) > 0;
 
 $moduleService = new ModuleService($pdo, $currentUserId, $_SERVER['REMOTE_ADDR'] ?? null);
 $userManagementService = new UserManagementService($pdo, $currentUserId, $_SERVER['REMOTE_ADDR'] ?? null);

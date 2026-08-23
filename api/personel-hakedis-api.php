@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/includes/personel-hakedis-bootstrap.php';
+phRequireAuth($pdo, true);
 
 use PersonelHakedis\ReportService;
 use PersonelHakedis\SpreadsheetService;

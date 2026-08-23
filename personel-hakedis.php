@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/includes/personel-hakedis-bootstrap.php';
+phRequireAuth($pdo);
 $csrf = phCsrfToken();
 ?>
 <!doctype html>
@@ -48,7 +49,7 @@ $csrf = phCsrfToken();
   </nav>
  </aside>
  <main class="ph-main">
-  <header class="ph-header"><button class="btn d-lg-none" id="menuToggle">☰</button><div><small class="ph-breadcrumb" id="pageModule">Çalışma Alanı</small><h1 id="pageTitle">Ana Panel</h1><p id="pageSubtitle">Personel, puantaj ve hakediş süreçleri</p></div><div class="ms-auto text-end"><span class="badge text-bg-light">PHP + MySQL</span><small class="d-block text-secondary mt-1"><?= htmlspecialchars($_SESSION['user_name'] ?? 'Aktif kullanıcı') ?></small></div></header>
+  <header class="ph-header"><button class="btn d-lg-none" id="menuToggle">☰</button><div><small class="ph-breadcrumb" id="pageModule">Çalışma Alanı</small><h1 id="pageTitle">Ana Panel</h1><p id="pageSubtitle">Personel, puantaj ve hakediş süreçleri</p></div><div class="ph-account"><span class="ph-account-avatar"><?= htmlspecialchars(mb_strtoupper(mb_substr((string)($_SESSION['user_name'] ?? 'K'),0,1))) ?></span><span><strong><?= htmlspecialchars((string)($_SESSION['user_name'] ?? 'Aktif kullanıcı')) ?></strong><small><?= !empty($_SESSION['is_admin']) ? 'Sistem Yöneticisi' : 'Kullanıcı' ?></small></span><form method="post" action="cikis.php"><input type="hidden" name="_token" value="<?= htmlspecialchars($csrf) ?>"><button type="submit" title="Çıkış yap"><i class="bi bi-box-arrow-right"></i><span>Çıkış</span></button></form></div></header>
   <div id="alertHost"></div>
   <section id="dashboard" class="module-section active">
    <div id="summaryCards" class="row g-3 mb-4"></div>
