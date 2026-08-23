@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 use PersonelHakedis\ModuleService;
 use PersonelHakedis\UserManagementService;
+use PersonelHakedis\HumanResourcesService;
 
 $moduleRoot = dirname(__DIR__);
 $config = require $moduleRoot . '/config/personel-hakedis.php';
@@ -28,10 +29,14 @@ if (is_file($autoload)) {
     require_once $moduleRoot . '/src/SpreadsheetService.php';
     require_once $moduleRoot . '/src/ReportService.php';
     require_once $moduleRoot . '/src/UserManagementService.php';
+    require_once $moduleRoot . '/src/HumanResourcesService.php';
 }
 
 if (!class_exists(UserManagementService::class)) {
     require_once $moduleRoot . '/src/UserManagementService.php';
+}
+if (!class_exists(HumanResourcesService::class)) {
+    require_once $moduleRoot . '/src/HumanResourcesService.php';
 }
 
 // Entegrasyon noktası: mevcut bootstrap bu dosyadan önce yüklenip $pdo sağlayabilir.
@@ -52,6 +57,7 @@ $moduleCanWrite = !empty($_SESSION['is_admin'])
 
 $moduleService = new ModuleService($pdo, $currentUserId, $_SERVER['REMOTE_ADDR'] ?? null);
 $userManagementService = new UserManagementService($pdo, $currentUserId, $_SERVER['REMOTE_ADDR'] ?? null);
+$humanResourcesService = new HumanResourcesService($pdo, $currentUserId, $_SERVER['REMOTE_ADDR'] ?? null);
 
 function phCsrfToken(): string
 {

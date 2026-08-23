@@ -17,10 +17,32 @@ try {
         'authorization_matrix' => 'system.permissions.manage',
         'save_user_permissions' => 'system.permissions.manage',
         'activity_logs' => 'system.logs.view',
+        'hr_overview' => 'hr.view',
+        'hr_detail' => 'hr.view',
+        'hr_reports' => 'hr.reports.view',
+        'export_hr_employees' => 'hr.view',
+        'export_hr_report' => 'hr.reports.view',
+        'export_hr_pdf' => 'hr.reports.view',
+        'hr_save_profile' => 'hr.manage',
+        'hr_save_leave' => 'hr.manage',
+        'hr_archive_leave' => 'hr.manage',
+        'hr_import_leaves' => 'hr.manage',
     ];
     if (isset($systemPermissions[$action]) && isset($_SESSION['permissions']) && empty($_SESSION['is_admin'])
         && !in_array($systemPermissions[$action], (array)$_SESSION['permissions'], true)) {
         throw new RuntimeException('Bu sistem yönetimi ekranı için yetkiniz yok.');
+    }
+    if ($action === 'export_hr_employees' || $action === 'export_hr_report') {
+        $path = $humanResourcesService->excel($action === 'export_hr_report' ? 'report' : 'employees');
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="'.($action === 'export_hr_report' ? 'zirve-ik-personel-raporu.xlsx' : 'zirve-ik-personel-listesi.xlsx').'"');
+        readfile($path); @unlink($path); exit;
+    }
+    if ($action === 'export_hr_pdf') {
+        $path = $humanResourcesService->pdf((string)($_GET['tip'] ?? 'gender'));
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: attachment; filename="zirve-ik-raporu.pdf"');
+        readfile($path); @unlink($path); exit;
     }
     if ($action === 'export_payroll_movements') {
         $report = new ReportService($moduleService->db());
@@ -56,6 +78,13 @@ try {
         'user_management' => $userManagementService->overview($_GET),
         'authorization_matrix' => $userManagementService->authorization((int)($_GET['kullanici_id'] ?? 0)),
         'activity_logs' => $userManagementService->logs($_GET),
+        'hr_overview' => $humanResourcesService->overview($_GET),
+        'hr_detail' => $humanResourcesService->detail((int)($_GET['id'] ?? 0)),
+        'hr_reports' => $humanResourcesService->reports(),
+        'hr_save_profile' => (function()use($humanResourcesService,$payload){$humanResourcesService->saveProfile((array)($payload['data']??[]));return['updated'=>true];})(),
+        'hr_save_leave' => ['id'=>$humanResourcesService->saveLeave((array)($payload['data']??[]))],
+        'hr_archive_leave' => (function()use($humanResourcesService,$payload){$humanResourcesService->archiveLeave((int)($payload['id']??0));return['archived'=>true];})(),
+        'hr_import_leaves' => $humanResourcesService->importLeaves(uploadedFile()),
         'save_user' => ['id'=>$userManagementService->saveUser((array)($payload['data'] ?? []))],
         'toggle_user' => (function()use($userManagementService,$payload){$userManagementService->setStatus((int)($payload['id']??0),(int)($payload['aktif']??0)===1);return['updated'=>true];})(),
         'reset_user_password' => (function()use($userManagementService,$payload){$password=(string)($payload['parola']??'');if($password!==(string)($payload['parola_tekrar']??''))throw new RuntimeException('Yeni parola ve tekrarı aynı olmalıdır.');$userManagementService->resetPassword((int)($payload['id']??0),$password);return['updated'=>true];})(),
