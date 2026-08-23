@@ -8,6 +8,19 @@ use PersonelHakedis\SpreadsheetService;
 
 try {
     $action = (string) ($_GET['action'] ?? $_POST['action'] ?? 'dashboard');
+    $systemPermissions = [
+        'user_management' => 'system.users.manage',
+        'save_user' => 'system.users.manage',
+        'toggle_user' => 'system.users.manage',
+        'reset_user_password' => 'system.users.manage',
+        'authorization_matrix' => 'system.permissions.manage',
+        'save_user_permissions' => 'system.permissions.manage',
+        'activity_logs' => 'system.logs.view',
+    ];
+    if (isset($systemPermissions[$action]) && isset($_SESSION['permissions']) && empty($_SESSION['is_admin'])
+        && !in_array($systemPermissions[$action], (array)$_SESSION['permissions'], true)) {
+        throw new RuntimeException('Bu sistem yönetimi ekranı için yetkiniz yok.');
+    }
     if ($action === 'export_payroll_movements') {
         $report = new ReportService($moduleService->db());
         $path = $report->payrollMovementsExcel((int)($_GET['id'] ?? 0));
@@ -39,6 +52,13 @@ try {
     }
     $result = match ($action) {
         'dashboard' => $moduleService->dashboard(),
+        'user_management' => $userManagementService->overview($_GET),
+        'authorization_matrix' => $userManagementService->authorization((int)($_GET['kullanici_id'] ?? 0)),
+        'activity_logs' => $userManagementService->logs($_GET),
+        'save_user' => ['id'=>$userManagementService->saveUser((array)($payload['data'] ?? []))],
+        'toggle_user' => (function()use($userManagementService,$payload){$userManagementService->setStatus((int)($payload['id']??0),(int)($payload['aktif']??0)===1);return['updated'=>true];})(),
+        'reset_user_password' => (function()use($userManagementService,$payload){$password=(string)($payload['parola']??'');if($password!==(string)($payload['parola_tekrar']??''))throw new RuntimeException('Yeni parola ve tekrarı aynı olmalıdır.');$userManagementService->resetPassword((int)($payload['id']??0),$password);return['updated'=>true];})(),
+        'save_user_permissions' => (function()use($userManagementService,$payload){$userManagementService->savePermissions((int)($payload['kullanici_id']??0),(array)($payload['yetki_idleri']??[]));return['updated'=>true];})(),
         'options' => $moduleService->options(),
         'list' => $moduleService->list((string)($_GET['entity'] ?? ''), $_GET, (int)($_GET['page'] ?? 1), (int)($_GET['size'] ?? 25)),
         'save' => ['id' => $moduleService->save((string)($payload['entity'] ?? ''), (array)($payload['data'] ?? []))],
