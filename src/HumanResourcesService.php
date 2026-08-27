@@ -169,7 +169,9 @@ final class HumanResourcesService
 
     public function reports(?int $year = null): array
     {
-        $employees=array_map(fn($row)=>array_merge($row,array_intersect_key($this->privateProfile((int)$row['id']),array_flip(['kan_grubu','emekli']))),$this->employees(['durum'=>'active']));return ['summary'=>$this->summary(),'distributions'=>$this->distributions(),'employees'=>$employees,'earnings'=>$this->monthlyEarnings($year)];
+        $employees=array_map(fn($row)=>array_merge($row,array_intersect_key($this->privateProfile((int)$row['id']),array_flip(['kan_grubu','emekli']))),$this->employees(['durum'=>'active']));
+        $departed=$this->employees(['durum'=>'passive']);
+        return ['summary'=>$this->summary(),'distributions'=>$this->distributions(),'employees'=>$employees,'departed'=>$departed,'earnings'=>$this->monthlyEarnings($year)];
     }
 
     public function excel(string $mode = 'employees'): string
@@ -220,7 +222,7 @@ final class HumanResourcesService
 
     private function summary(): array
     {
-        $people=$this->db->query('SELECT COUNT(*) toplam_personel,COALESCE(SUM(aktif=1),0) aktif_personel FROM personeller')->fetch()?:[];
+        $people=$this->db->query('SELECT COUNT(*) toplam_personel,COALESCE(SUM(aktif=1),0) aktif_personel,COALESCE(SUM(aktif=0),0) pasif_personel FROM personeller')->fetch()?:[];
         $leave=$this->db->query('SELECT COUNT(*) izin_kaydi,COALESCE(SUM(sure_gun),0) toplam_gun FROM ik_izin_kayitlari WHERE aktif=1')->fetch()?:[];
         return $people+$leave;
     }
