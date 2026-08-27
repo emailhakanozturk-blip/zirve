@@ -41,6 +41,27 @@ final class SpreadsheetService
         }catch(Throwable$e){$this->db->rollBack();throw$e;}
     }
 
+    public function importPayrollByJobs(string$file,array$meta,string$mode='update'):array
+    {
+        $this->ensureLibrary();$sheets=$this->readSheets($file);$rows=[];foreach($sheets as$sheetRows)if($this->isDetailedPayroll($sheetRows)){$rows=$sheetRows;break;}if(!$rows)throw new RuntimeException('Toplu iş bazlı yükleme için detaylı bordro biçimi gereklidir.');
+        $period=$this->detailedPayrollPeriod($rows);if(!$period)throw new RuntimeException('Bordro dönemi dosyadan okunamadı.');if((int)($meta['yil']??0)!==$period['yil']||(int)($meta['ay']??0)!==$period['ay'])throw new RuntimeException("Excel dönemi {$period['ay']}/{$period['yil']}; seçilen dönem ".($meta['ay']??'').'/'.($meta['yil']??'').'.');
+        $fallback=['sozlesme_id'=>(int)($meta['sozlesme_id']??0),'is_id'=>(int)($meta['is_id']??0),'tis_donem_id'=>(int)($meta['tis_donem_id']??0)];if(min($fallback)<1)throw new RuntimeException('Yeni veya iş ataması bulunmayan personeller için sözleşme, iş ve TİS dönemi seçilmelidir.');
+        $records=$this->mergeDetailedPayrollRecords($this->detailedPayrollRecords($rows));if(!$records)throw new RuntimeException('Detaylı bordroda personel kaydı bulunamadı.');$replace=!isset($meta['replace_period'])||(string)$meta['replace_period']!=='0';$autoPersonnel=!isset($meta['auto_personnel'])||(string)$meta['auto_personnel']!=='0';
+        $this->db->beginTransaction();
+        try{
+            $removed=$replace?$this->deletePayrollPeriod($period['yil'],$period['ay']):['bordro'=>0,'hakedis'=>0];$groups=[];$created=0;$matched=0;$unmatched=[];
+            foreach($records as$record){$person=$this->matchPerson($record['tc_kimlik_no'],$record['sgk_sicil_no']);if(!$person&&$autoPersonnel){$person=$this->createPersonFromPayroll($record,$meta);$created++;}if(!$person){$unmatched[]=['satir'=>$record['satir_no'],'ad_soyad'=>$record['ad_soyad'],'tc'=>$record['tc_kimlik_no'],'sgk'=>$record['sgk_sicil_no']];continue;}$matched++;
+                $assignment=$this->personnelAssignmentForPeriod((int)$person['id'],$period['yil'],$period['ay'])??$fallback;$groupKey=$assignment['sozlesme_id'].'-'.$assignment['is_id'].'-'.$assignment['tis_donem_id'];$groupMeta=array_merge($meta,$assignment,['yil'=>$period['yil'],'ay'=>$period['ay'],'dosya_adi'=>basename((string)($meta['dosya_adi']??basename($file))) ]);$this->ensurePersonnelAssignment((int)$person['id'],$record,$groupMeta);$groups[$groupKey]['meta']=$groupMeta;$groups[$groupKey]['records'][]=['record'=>$record,'person_id'=>(int)$person['id']];
+            }
+            if($unmatched)throw new RuntimeException(count($unmatched).' personel kartıyla eşleştirilemedi. Eksik personelleri otomatik oluştur seçeneğini açık bırakın.');
+            $payrolls=[];foreach($groups as$group){$groupMeta=$group['meta'];[$payrollId,$version]=$this->preparePayroll($file,$groupMeta,$mode);foreach($group['records']as$entry){$record=$entry['record'];$personId=$entry['person_id'];$this->db->prepare("INSERT INTO bordro_personelleri(bordro_id,personel_id,satir_no,tc_kimlik_no,sgk_sicil_no,ad_soyad,eslesme_durumu) VALUES(?,?,?,?,?,?,'eslesti')")->execute([$payrollId,$personId,$record['satir_no'],$record['tc_kimlik_no'],$record['sgk_sicil_no']?:null,$record['ad_soyad']]);$bp=(int)$this->db->lastInsertId();$insert=$this->db->prepare("INSERT INTO bordro_kalemleri(bordro_personel_id,kalem_adi,miktar,tutar,kaynak_sutun) VALUES(?,?,?,?,?)");foreach($record['kalemler']as$item)$insert->execute([$bp,$item['ad'],$item['miktar'],$item['tutar'],$item['kaynak']]);$this->createTimesheet($payrollId,$personId,$groupMeta,$bp);}
+                $cost=$this->detailedRecordsCostSummary(array_column($group['records'],'record'));$this->savePayrollCostSummary($payrollId,$cost);$this->db->prepare("UPDATE bordrolar SET durum='tamamlandi' WHERE id=?")->execute([$payrollId]);$payrolls[]=['bordro_id'=>$payrollId,'surum'=>$version,'sozlesme_id'=>(int)$groupMeta['sozlesme_id'],'is_id'=>(int)$groupMeta['is_id'],'tis_donem_id'=>(int)$groupMeta['tis_donem_id'],'personel'=>count($group['records']),'maliyet'=>$cost];}
+            $this->db->commit();
+        }catch(Throwable$e){if($this->db->inTransaction())$this->db->rollBack();throw$e;}
+        $progress=[];$errors=[];if(!isset($meta['create_progress'])||(string)$meta['create_progress']!=='0')foreach($payrolls as$payroll){try{$progress[]=['bordro_id'=>$payroll['bordro_id'],'hakedis_id'=>(new ModuleService($this->db,$this->userId,null))->generateProgressFromPayroll((int)$payroll['bordro_id'])];}catch(Throwable$e){$errors[]=['bordro_id'=>$payroll['bordro_id'],'message'=>$e->getMessage()];}}
+        return['format'=>'zirve_toplu_is_bazli_bordro','toplam_personel'=>count($records),'olusturulan_personel'=>$created,'eslesen'=>$matched,'eslesmeyen'=>[],'is_sayisi'=>count($payrolls),'bordrolar'=>$payrolls,'hakedisler'=>$progress,'hakedis_hatalari'=>$errors,'silinen'=>$removed];
+    }
+
     public function analyzePayrollFile(string$file):array
     {
         $this->ensureLibrary();$rows=$this->read($file);
@@ -98,6 +119,11 @@ final class SpreadsheetService
         return$values;
     }
 
+    private function detailedRecordsCostSummary(array$records):array
+    {
+        $values=['toplam_kazanc'=>0.0,'ssk_prim_isveren'=>0.0,'issizlik_prim_isveren'=>0.0];$map=['toplam kazanc'=>'toplam_kazanc','ssk prim isveren'=>'ssk_prim_isveren','issizlik prim isveren'=>'issizlik_prim_isveren'];foreach($records as$record)foreach($record['kalemler']as$item){$key=$this->normalize($item['ad']);if(isset($map[$key]))$values[$map[$key]]+=(float)$item['tutar'];}foreach($values as&$value)$value=round($value,2);unset($value);return$values;
+    }
+
     private function savePayrollCostSummary(int$payrollId,array$values):void
     {
         $earnings=round((float)($values['toplam_kazanc']??0),2);$social=round((float)($values['ssk_prim_isveren']??0),2);$unemployment=round((float)($values['issizlik_prim_isveren']??0),2);$base=round($earnings+$social+$unemployment,2);$overhead=round($base*.04,2);$profit=round($base*.07,2);$total=round($base+$overhead+$profit,2);
@@ -113,6 +139,23 @@ final class SpreadsheetService
             for($detail=$index+1;$detail<$next;$detail++){$detailRow=$rows[$detail];$first=$this->normalize($detailRow[0]??'');if($first==='gunluk ucreti'){$items[]=['ad'=>'Günlük Ücret','miktar'=>1.0,'tutar'=>$this->numericValue($detailRow[1]??0),'kaynak'=>'B'.($detail+1)];continue;}foreach([0,5,10,15]as$offset){$rawLabel=trim((string)($detailRow[$offset]??''));if($rawLabel===''||$rawLabel==='11'||$rawLabel==='---')continue;$label=trim((string)preg_replace('/\s*:\s*$/u','',$rawLabel));$amount=$this->quantityValue($detailRow[$offset+1]??null);$money=$this->numericValue($detailRow[$offset+2]??0);if($label!==''&&($amount!=0.0||$money!=0.0))$items[]=['ad'=>$label,'miktar'=>$amount,'tutar'=>$money,'kaynak'=>$this->columnName($offset).($detail+1)];}}
             $records[]=['satir_no'=>$index+1,'ad_soyad'=>trim((string)$row[0]),'tc_kimlik_no'=>preg_replace('/\D/','',(string)$row[3]),'sgk_sicil_no'=>trim((string)($row[4]??'')),'ise_giris_tarihi'=>trim((string)($row[1]??'')),'isten_cikis_tarihi'=>trim((string)($row[2]??'')),'kalemler'=>$items];}
         return$records;
+    }
+
+    private function mergeDetailedPayrollRecords(array$records):array
+    {
+        $merged=[];foreach($records as$record){$key=$record['tc_kimlik_no']!==''?$record['tc_kimlik_no']:$this->normalize($record['ad_soyad']);if(!isset($merged[$key])){$record['kaynak_satirlari']=[$record['satir_no']];$merged[$key]=$record;continue;}$merged[$key]['kaynak_satirlari'][]=$record['satir_no'];$merged[$key]['satir_no']=min((int)$merged[$key]['satir_no'],(int)$record['satir_no']);$items=[];foreach(array_merge($merged[$key]['kalemler'],$record['kalemler'])as$item){$itemKey=$this->normalize($item['ad']);if(!isset($items[$itemKey]))$items[$itemKey]=$item;else{$items[$itemKey]['miktar']=round((float)$items[$itemKey]['miktar']+(float)$item['miktar'],2);$items[$itemKey]['tutar']=round((float)$items[$itemKey]['tutar']+(float)$item['tutar'],2);$items[$itemKey]['kaynak'].=','.$item['kaynak'];}}$merged[$key]['kalemler']=array_values($items);}return array_values($merged);
+    }
+
+    private function personnelAssignmentForPeriod(int$personId,int$year,int$month):?array
+    {
+        $start=sprintf('%04d-%02d-01',$year,$month);$end=date('Y-m-t',strtotime($start));$q=$this->db->prepare('SELECT sozlesme_id,is_id,tis_donem_id FROM personel_is_gecmisi WHERE personel_id=? AND baslangic_tarihi<=? AND (bitis_tarihi IS NULL OR bitis_tarihi>=?) ORDER BY aktif DESC,baslangic_tarihi DESC,id DESC');$q->execute([$personId,$end,$start]);$rows=$q->fetchAll();if(!$rows)return null;$pairs=[];foreach($rows as$row)$pairs[$row['sozlesme_id'].'-'.$row['is_id'].'-'.$row['tis_donem_id']]=$row;if(count($pairs)>1)throw new RuntimeException('Personelin aynı ay içinde birden fazla iş ataması var. Personel iş geçmişini düzeltin.');$row=reset($pairs);return['sozlesme_id'=>(int)$row['sozlesme_id'],'is_id'=>(int)$row['is_id'],'tis_donem_id'=>(int)$row['tis_donem_id']];
+    }
+
+    private function deletePayrollPeriod(int$year,int$month):array
+    {
+        $progress=$this->db->prepare('SELECT id FROM hakedisler WHERE yil=? AND ay=?');$progress->execute([$year,$month]);$progressIds=array_map('intval',$progress->fetchAll(PDO::FETCH_COLUMN));if($progressIds){$marks=implode(',',array_fill(0,count($progressIds),'?'));foreach(['hakedis_genel_kalemleri','hakedis_mali_ozetleri','hakedis_detaylari','hakedis_bordrolari']as$table)$this->db->prepare("DELETE FROM {$table} WHERE hakedis_id IN ({$marks})")->execute($progressIds);$this->db->prepare("DELETE FROM hakedisler WHERE id IN ({$marks})")->execute($progressIds);}
+        $payroll=$this->db->prepare('SELECT id FROM bordrolar WHERE yil=? AND ay=?');$payroll->execute([$year,$month]);$payrollIds=array_map('intval',$payroll->fetchAll(PDO::FETCH_COLUMN));if($payrollIds){$marks=implode(',',array_fill(0,count($payrollIds),'?'));$this->db->prepare("DELETE k FROM puantaj_karsilastirmalari k JOIN puantajlar p ON p.id=k.puantaj_id WHERE p.bordro_id IN ({$marks})")->execute($payrollIds);$this->db->prepare("DELETE d FROM puantaj_detaylari d JOIN puantajlar p ON p.id=d.puantaj_id WHERE p.bordro_id IN ({$marks})")->execute($payrollIds);$this->db->prepare("DELETE FROM puantajlar WHERE bordro_id IN ({$marks})")->execute($payrollIds);foreach(['personel_sendikal_hak_tarihcesi','bordro_maliyet_ozetleri']as$table)$this->db->prepare("DELETE FROM {$table} WHERE bordro_id IN ({$marks})")->execute($payrollIds);$this->db->prepare("DELETE k FROM bordro_kalemleri k JOIN bordro_personelleri p ON p.id=k.bordro_personel_id WHERE p.bordro_id IN ({$marks})")->execute($payrollIds);$this->db->prepare("DELETE FROM bordro_personelleri WHERE bordro_id IN ({$marks})")->execute($payrollIds);$this->db->prepare("UPDATE bordrolar SET onceki_bordro_id=NULL WHERE onceki_bordro_id IN ({$marks})")->execute($payrollIds);$this->db->prepare("DELETE FROM bordrolar WHERE id IN ({$marks})")->execute($payrollIds);}
+        return['bordro'=>count($payrollIds),'hakedis'=>count($progressIds)];
     }
 
     public function importComparison(string$file,array$meta):array

@@ -27,6 +27,7 @@ try {
         'hr_save_leave' => 'hr.manage',
         'hr_archive_leave' => 'hr.manage',
         'hr_import_leaves' => 'hr.manage',
+        'hr_import_personnel' => 'hr.manage',
     ];
     if (isset($systemPermissions[$action]) && isset($_SESSION['permissions']) && empty($_SESSION['is_admin'])
         && !in_array($systemPermissions[$action], (array)$_SESSION['permissions'], true)) {
@@ -80,11 +81,12 @@ try {
         'activity_logs' => $userManagementService->logs($_GET),
         'hr_overview' => $humanResourcesService->overview($_GET),
         'hr_detail' => $humanResourcesService->detail((int)($_GET['id'] ?? 0)),
-        'hr_reports' => $humanResourcesService->reports(),
+        'hr_reports' => $humanResourcesService->reports(isset($_GET['yil'])?(int)$_GET['yil']:null),
         'hr_save_profile' => (function()use($humanResourcesService,$payload){$humanResourcesService->saveProfile((array)($payload['data']??[]));return['updated'=>true];})(),
         'hr_save_leave' => ['id'=>$humanResourcesService->saveLeave((array)($payload['data']??[]))],
         'hr_archive_leave' => (function()use($humanResourcesService,$payload){$humanResourcesService->archiveLeave((int)($payload['id']??0));return['archived'=>true];})(),
         'hr_import_leaves' => $humanResourcesService->importLeaves(uploadedFile()),
+        'hr_import_personnel' => $humanResourcesService->importPersonnelData(uploadedFile()),
         'save_user' => ['id'=>$userManagementService->saveUser((array)($payload['data'] ?? []))],
         'toggle_user' => (function()use($userManagementService,$payload){$userManagementService->setStatus((int)($payload['id']??0),(int)($payload['aktif']??0)===1);return['updated'=>true];})(),
         'reset_user_password' => (function()use($userManagementService,$payload){$password=(string)($payload['parola']??'');if($password!==(string)($payload['parola_tekrar']??''))throw new RuntimeException('Yeni parola ve tekrarı aynı olmalıdır.');$userManagementService->resetPassword((int)($payload['id']??0),$password);return['updated'=>true];})(),
@@ -111,7 +113,7 @@ try {
         'job_progress_report' => (new ReportService($moduleService->db()))->jobMonthlySummary((int)($_GET['yil']??date('Y')),(int)($_GET['ay']??date('n')),(int)($_GET['is_id']??0)),
         'generate_progress' => ['id' => $moduleService->generateProgress((int)$payload['yil'],(int)$payload['ay'],(int)$payload['sozlesme_id'])],
         'generate_progress_from_payroll' => ['id' => $moduleService->generateProgressFromPayroll((int)($payload['id']??0))],
-        'upload_payroll' => (new SpreadsheetService($moduleService->db(),$currentUserId))->importPayroll(uploadedFile(),$payload,(string)($payload['mode']??'version')),
+        'upload_payroll' => (function()use($moduleService,$currentUserId,$payload){$service=new SpreadsheetService($moduleService->db(),$currentUserId);$file=uploadedFile();return!empty($payload['auto_split_jobs'])?$service->importPayrollByJobs($file,$payload,(string)($payload['mode']??'update')):$service->importPayroll($file,$payload,(string)($payload['mode']??'version'));})(),
         'upload_comparison' => (new SpreadsheetService($moduleService->db(),$currentUserId))->importComparison(uploadedFile(),$payload),
         'resolve_comparison' => (function()use($moduleService,$currentUserId,$payload){(new SpreadsheetService($moduleService->db(),$currentUserId))->resolveComparison((int)$payload['id'],(string)$payload['choice'],isset($payload['manual'])?(float)$payload['manual']:null);return['updated'=>true];})(),
         'report' => ['rows'=>(new ReportService($moduleService->db()))->rows((string)($_GET['type']??'hakedis'),$_GET)],
