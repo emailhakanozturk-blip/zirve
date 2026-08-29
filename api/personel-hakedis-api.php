@@ -59,6 +59,13 @@ try {
         header('Content-Disposition: attachment; filename="bordro-puantaji.xlsx"');
         readfile($path); @unlink($path); exit;
     }
+    if ($action === 'export_module_excel') {
+        $report = new ReportService($moduleService->db());
+        $path = $report->moduleOverviewExcel();
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="zirve-personel-puantaj-hakedis.xlsx"');
+        readfile($path); @unlink($path); exit;
+    }
     if ($action === 'export') {
         $report = new ReportService($moduleService->db());
         $format = ($_GET['format'] ?? 'excel') === 'pdf' ? 'pdf' : 'excel';
@@ -92,6 +99,7 @@ try {
         'reset_user_password' => (function()use($userManagementService,$payload){$password=(string)($payload['parola']??'');if($password!==(string)($payload['parola_tekrar']??''))throw new RuntimeException('Yeni parola ve tekrarı aynı olmalıdır.');$userManagementService->resetPassword((int)($payload['id']??0),$password);return['updated'=>true];})(),
         'save_user_permissions' => (function()use($userManagementService,$payload){$userManagementService->savePermissions((int)($payload['kullanici_id']??0),(array)($payload['yetki_idleri']??[]));return['updated'=>true];})(),
         'options' => $moduleService->options(),
+        'benefit_analysis' => $moduleService->benefitAnalysis($_GET),
         'list' => $moduleService->list((string)($_GET['entity'] ?? ''), $_GET, (int)($_GET['page'] ?? 1), (int)($_GET['size'] ?? 25)),
         'save' => ['id' => $moduleService->save((string)($payload['entity'] ?? ''), (array)($payload['data'] ?? []))],
         'save_personnel' => ['id' => $moduleService->savePersonnel((array)($payload['data'] ?? []))],

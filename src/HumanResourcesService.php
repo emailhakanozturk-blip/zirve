@@ -30,8 +30,8 @@ final class HumanResourcesService
         $sql = $this->employeeSelect() . ' WHERE 1=1';
         $params = [];
         $status = (string)($filters['durum'] ?? 'active');
-        if ($status === 'active') $sql .= ' AND p.aktif=1';
-        if ($status === 'passive') $sql .= ' AND p.aktif=0';
+        if ($status === 'active') $sql .= ' AND p.aktif=1 AND (p.isten_cikis_tarihi IS NULL OR p.isten_cikis_tarihi>CURDATE())';
+        if ($status === 'passive') $sql .= ' AND (p.aktif=0 OR p.isten_cikis_tarihi<=CURDATE())';
         $search = trim((string)($filters['ara'] ?? ''));
         if ($search !== '') {
             $sql .= " AND CONCAT_WS(' ',p.ad_soyad,p.sgk_sicil_no,pr.personel_kodu,pr.unvan,pr.isyeri_adi) LIKE :search";
@@ -204,7 +204,7 @@ final class HumanResourcesService
 
     private function employeeSelect(): string
     {
-        return "SELECT p.id,p.ad_soyad,p.tc_kimlik_no,p.sgk_sicil_no,p.ise_giris_tarihi,p.isten_cikis_tarihi,p.aktif,
+        return "SELECT p.id,p.ad_soyad,p.tc_kimlik_no,p.sgk_sicil_no,p.ise_giris_tarihi,p.isten_cikis_tarihi,CASE WHEN p.aktif=0 OR p.isten_cikis_tarihi<=CURDATE() THEN 0 ELSE 1 END aktif,
             COALESCE(NULLIF(pr.personel_kodu,''),NULLIF(p.sgk_sicil_no,''),CONCAT('P-',LPAD(p.id,5,'0'))) personel_kodu,
             COALESCE(NULLIF(pr.unvan,''),(SELECT i.ad FROM personel_is_gecmisi g JOIN is_tanimlari i ON i.id=g.is_id WHERE g.personel_id=p.id AND g.aktif=1 ORDER BY g.baslangic_tarihi DESC,g.id DESC LIMIT 1),'Personel') unvan,
             COALESCE(NULLIF(pr.isyeri_adi,''),(SELECT s.ad FROM personel_is_gecmisi g JOIN sozlesmeler s ON s.id=g.sozlesme_id WHERE g.personel_id=p.id AND g.aktif=1 ORDER BY g.baslangic_tarihi DESC,g.id DESC LIMIT 1),'Belirtilmemiş') isyeri_adi,
@@ -222,7 +222,7 @@ final class HumanResourcesService
 
     private function summary(): array
     {
-        $people=$this->db->query('SELECT COUNT(*) toplam_personel,COALESCE(SUM(aktif=1),0) aktif_personel,COALESCE(SUM(aktif=0),0) pasif_personel FROM personeller')->fetch()?:[];
+        $people=$this->db->query('SELECT COUNT(*) toplam_personel,COALESCE(SUM(aktif=1 AND (isten_cikis_tarihi IS NULL OR isten_cikis_tarihi>CURDATE())),0) aktif_personel,COALESCE(SUM(aktif=0 OR isten_cikis_tarihi<=CURDATE()),0) pasif_personel FROM personeller')->fetch()?:[];
         $leave=$this->db->query('SELECT COUNT(*) izin_kaydi,COALESCE(SUM(sure_gun),0) toplam_gun FROM ik_izin_kayitlari WHERE aktif=1')->fetch()?:[];
         return $people+$leave;
     }
@@ -240,11 +240,12 @@ final class HumanResourcesService
         $selected=$year && in_array($year,$years,true)?$year:($years[0]??(int)date('Y'));
         $statement=$this->db->prepare("SELECT p.id,p.ad_soyad,COALESCE(NULLIF(pr.personel_kodu,''),NULLIF(p.sgk_sicil_no,''),CONCAT('P-',LPAD(p.id,5,'0'))) personel_kodu,b.ay,ROUND(SUM(bk.tutar),2) toplam_kazanc
             FROM bordrolar b
+            JOIN (SELECT yil,ay,sozlesme_id,is_id,MAX(surum) surum FROM bordrolar WHERE aktif=1 AND durum='tamamlandi' GROUP BY yil,ay,sozlesme_id,is_id) lb ON lb.yil=b.yil AND lb.ay=b.ay AND lb.sozlesme_id=b.sozlesme_id AND lb.is_id=b.is_id AND lb.surum=b.surum
             JOIN bordro_personelleri bp ON bp.bordro_id=b.id AND bp.personel_id IS NOT NULL
             JOIN bordro_kalemleri bk ON bk.bordro_personel_id=bp.id AND UPPER(TRIM(bk.kalem_adi))='TOPLAM KAZANÇ'
             JOIN personeller p ON p.id=bp.personel_id
             LEFT JOIN ik_personel_profilleri pr ON pr.personel_id=p.id
-            WHERE b.aktif=1 AND b.yil=?
+            WHERE b.aktif=1 AND b.durum='tamamlandi' AND b.yil=?
             GROUP BY p.id,p.ad_soyad,pr.personel_kodu,p.sgk_sicil_no,b.ay
             ORDER BY p.ad_soyad,b.ay");
         $statement->execute([$selected]);$people=[];$monthTotals=array_fill(1,12,0.0);

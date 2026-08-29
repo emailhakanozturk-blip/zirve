@@ -1,0 +1,58 @@
+/* Sendikal haklar aylık kontrol ekranı */
+.benefit-view-tabs{grid-template-columns:repeat(4,minmax(0,1fr))}
+.benefit-metrics{grid-template-columns:repeat(6,minmax(0,1fr))}
+.benefit-chip-row.status button:nth-child(4).active{border-color:#c06416;background:#c06416}
+.benefit-catalog-card{margin-bottom:13px;padding:14px 16px}
+.benefit-catalog-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.benefit-catalog-head>div{display:grid;gap:2px}
+.benefit-catalog-head span{color:#16877f;font-size:.61rem;font-weight:850;letter-spacing:.1em}
+.benefit-catalog-head strong{color:#173f6c;font-size:.82rem}
+.benefit-catalog-head small{padding:5px 9px;border-radius:99px;background:#edf3f8;color:#557087;font-size:.65rem;font-weight:800}
+.benefit-right-catalog{display:flex;gap:7px;overflow-x:auto;padding:1px 1px 5px;scrollbar-width:thin}
+.benefit-right-catalog button{flex:0 0 auto;display:grid;gap:2px;max-width:220px;padding:8px 11px;border:1px solid #dbe5ee;border-radius:10px;background:#f8fbfd;color:#355b77;text-align:left}
+.benefit-right-catalog button strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.69rem}
+.benefit-right-catalog button small{color:#8a99a8;font-size:.58rem}
+.benefit-right-catalog button:hover,.benefit-right-catalog button.active{border-color:#1b6683;background:#1b6683;color:#fff}
+.benefit-right-catalog button.active small,.benefit-right-catalog button:hover small{color:#d4e4ea}
+.benefit-person-link{border:0;background:transparent;color:#174f70;font-weight:800;text-align:left;text-decoration:underline;text-decoration-color:#a8bfce;text-underline-offset:3px}
+.benefit-person-link:hover{color:#16877f;text-decoration-color:#16877f}
+.benefit-month-heading{text-align:center!important;min-width:112px}
+.benefit-month-heading.is-selected{background:#dcecf7!important;color:#174f70!important;box-shadow:inset 0 -3px #1b6683}
+.benefit-month-cell{text-align:center!important;font-variant-numeric:tabular-nums}
+.benefit-month-cell strong,.benefit-month-cell small{display:block;white-space:nowrap}
+.benefit-month-cell strong{color:#365875;font-size:.68rem}
+.benefit-month-cell small{margin-top:2px;color:#8998a6;font-size:.55rem;font-weight:750}
+.benefit-month-cell.is-selected{box-shadow:inset 2px 0 #b8cedd,inset -2px 0 #b8cedd}
+.benefit-month-cell.is-received small{color:#167459}
+.benefit-month-cell.is-not-received{background:#fff8f9}.benefit-month-cell.is-not-received small{color:#ad4050}
+.benefit-month-cell.is-incorrect{background:#fff2e8}.benefit-month-cell.is-incorrect strong,.benefit-month-cell.is-incorrect small{color:#ae5710}
+.benefit-job-group td{padding:9px 13px!important;background:#173f6c!important;color:#fff!important;text-align:left!important}
+.benefit-job-group i{margin-right:7px;color:#78e2d5}.benefit-job-group strong{color:#fff!important;font-size:.72rem}.benefit-job-group span{margin-left:9px;color:#cbd9e5;font-size:.6rem}
+.benefit-right-name{display:inline-block;max-width:220px;color:#315b79;font-size:.66rem;font-weight:800}
+.benefit-month-total{text-align:right!important}.benefit-month-total strong,.benefit-month-total small{display:block;white-space:nowrap}.benefit-month-total strong{color:#173f6c;font-size:.7rem}.benefit-month-total small{color:#8293a2;font-size:.55rem}
+.benefit-difference{color:#b24755!important;font-weight:850}
+.benefit-audit-badge{display:inline-flex;align-items:center;justify-content:center;max-width:180px;padding:4px 7px;border-radius:99px;background:#edf3f8;color:#5e7286;font-size:.61rem;font-weight:850;white-space:nowrap}
+.benefit-audit-badge.correct,.benefit-audit-badge.received{background:#e3f6ed;color:#167459}
+.benefit-audit-badge.missing,.benefit-audit-badge.unexpected,.benefit-audit-badge.mismatch{background:#fff0e7;color:#ae5710}
+.benefit-audit-badge.not_received{background:#fff0f2;color:#ad4050}
+.benefit-audit-badge.no_data{background:#f0f2f5;color:#8b98a4}
+.benefit-timeline-card{margin-top:13px;overflow:hidden}
+.benefit-timeline-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:17px 18px;border-bottom:1px solid #e3e9f0}
+.benefit-timeline-head span{color:#16877f;font-size:.61rem;font-weight:850;letter-spacing:.1em}
+.benefit-timeline-head h3{margin:3px 0 2px;color:#173f6c;font-size:1.02rem}
+.benefit-timeline-head p{margin:0;color:#8292a4;font-size:.7rem}
+.benefit-timeline-head button{display:grid;place-items:center;width:32px;height:32px;border:1px solid #dce5ed;border-radius:9px;background:#fff;color:#668097}
+.benefit-timeline{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;padding:14px}
+.benefit-timeline article{padding:12px;border:1px solid #dfe7ef;border-radius:12px;background:#fff}
+.benefit-timeline article.is-incorrect{border-color:#e7b98f;background:#fffaf6}
+.benefit-timeline article.is-empty{opacity:.67;background:#f7f9fb}
+.benefit-timeline article header{display:flex;align-items:center;justify-content:space-between;gap:7px;margin-bottom:9px}
+.benefit-timeline article header strong{color:#173f6c;font-size:.77rem}
+.benefit-timeline dl{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:0 0 8px}
+.benefit-timeline dl div{display:grid}
+.benefit-timeline dt{color:#8796a5;font-size:.55rem;text-transform:uppercase}
+.benefit-timeline dd{margin:0;color:#31536e;font-size:.7rem;font-weight:800}
+.benefit-timeline article>small{display:block;overflow:hidden;color:#8595a4;font-size:.58rem;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:1200px){.benefit-view-tabs{grid-template-columns:repeat(2,1fr)}.benefit-metrics{grid-template-columns:repeat(3,1fr)}.benefit-timeline{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:767px){.benefit-view-tabs{grid-template-columns:1fr}.benefit-metrics{grid-template-columns:1fr 1fr}.benefit-timeline{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.benefit-metrics,.benefit-timeline{grid-template-columns:1fr}}
